@@ -1,0 +1,159 @@
+﻿@page "/"
+@page "/schedule"
+@using Syncfusion.Blazor.DropDowns
+@using FERITOrganizator.Shared.Models
+@inject IScheduleService ScheduleService
+@inject ISemesterService SemesterService
+@inject ICourseService CourseService
+@inject IJSRuntime JsRuntime
+
+
+<SfDropDownList TItem="CourseData" TValue="string" DataSource="coursesData" Placeholder="Odaberi smjer" @bind-Value="@course">
+    <DropDownListFieldSettings GroupBy="Category" Text="CourseId" Value="Name"></DropDownListFieldSettings>
+</SfDropDownList>
+<br />
+<br />
+
+<SfDropDownList TItem="SemesterData" TValue="int" DataSource="semestersData" Placeholder="Odaberi semestar" @bind-Value="@semester">
+    <DropDownListFieldSettings GroupBy="Category" Text="Number" Value="Number"></DropDownListFieldSettings>
+</SfDropDownList>
+<br />
+<br />
+<SfButton @onclick="GetSchedule" CssClass="e-primary">Prikaži</SfButton>
+<br />
+<br />
+
+
+<SfSchedule TValue="ScheduleForm" @bind-SelectedDate="@CurrentDate" CurrentView="View.Week" FirstDayOfWeek="1">
+        <ScheduleViews>
+            @if (Width > 1024)
+            {
+                <ScheduleView Option="View.Day" StartHour="08:00" EndHour="22:00"></ScheduleView>
+                <ScheduleView Option="View.Week" StartHour="08:00" EndHour="22:00"></ScheduleView>
+            }
+            else
+            {
+                <ScheduleView Option="View.Agenda" StartHour="08:00" EndHour="22:00"></ScheduleView>
+            }
+        </ScheduleViews>
+        <ScheduleResources>
+            <ScheduleResource TItem="ResourceDataModel" TValue="int" DataSource="@ResourceData"
+                                Field="ResourceId" TextField="Type" IdField="ResourceId" ColorField="Color">
+            </ScheduleResource>
+        </ScheduleResources>
+        <ScheduleEventSettings DataSource="@schedules"></ScheduleEventSettings>
+    </SfSchedule>
+
+
+@code {
+
+    DateTime CurrentDate = DateTime.Now;
+
+    public string course;
+    public int semester;
+    List<FERITOrganizator.Shared.Models.Schedule> schedulesData = new List<FERITOrganizator.Shared.Models.Schedule>();
+    List<SemesterData> semestersData = new List<SemesterData>();
+    List<CourseData> coursesData = new List<CourseData>();
+    List<ScheduleForm> schedules = new List<ScheduleForm>();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SemesterService.LoadSemesters();
+        semestersData = SemesterService.Semesters;
+        await CourseService.LoadCourses();
+        coursesData = CourseService.Courses;
+    }
+
+    public int Width { get; set; }
+    public class WindowDimension
+    {
+        public int Width { get; set; }
+    }
+
+    private async Task GetSchedule()
+    {
+        var dimension = await JsRuntime.InvokeAsync<WindowDimension>("getWindowDimensions");
+        Width = dimension.Width;
+
+        await ScheduleService.LoadSchedules();
+        schedulesData = ScheduleService.Schedules;
+        int i = 0;
+        int j = 0;
+        List<ScheduleForm> scheduless = new List<ScheduleForm>();
+
+        foreach (var schedule in schedulesData)
+        {
+            foreach (var entry in schedule.Entries)
+            {
+                DateTime StartDate = new DateTime(schedule.Date.Year, schedule.Date.Month,
+                        schedule.Date.Day, entry.Start.Hour, entry.Start.Minute, 0);
+                DateTime EndDate = new DateTime(schedule.Date.Year, schedule.Date.Month,
+                    schedule.Date.Day, entry.End.Hour, entry.End.Minute, 0);
+
+                if (entry.ClassType == "AV - auditorne vježbe") { j = 1; }
+                else if (entry.ClassType == "PR - predavanja") { j = 2; }
+                else if (entry.ClassType == "LV - laboratorijske vježbe") { j = 3; }
+                else if (entry.ClassType == "Nepoznato") { j = 4; }
+                else if (entry.ClassType == "ISP - ispitni rok") { j = 5; }
+
+                if (entry.Course == course && entry.Subject.Semester == semester)
+                {
+                    i++;
+                    scheduless.Add(new ScheduleForm()
+                    {
+                        Id = i,
+                        StartTime = StartDate,
+                        EndTime = EndDate,
+                        Subject = entry.Subject.Value + " (" + entry.ClassType + ", " + entry.Done + "/" + entry.Expected + ")",
+                        Description = entry.Professor + ", grupa: " + entry.Group,
+                        Location = entry.Classroom,
+                        ResourceId = j
+                    });
+                }
+                else if (schedule.WeekType == 2 && semester % 2 == 0 && entry.Course == course && (semester - entry.Subject.Semester == 1))
+                {
+                    scheduless.Add(new ScheduleForm()
+                    {
+                        Id = i,
+                        StartTime = StartDate,
+                        EndTime = EndDate,
+                        Subject = entry.Subject.Value + " (" + entry.ClassType + ", " + entry.Done + "/" + entry.Expected + ")",
+                        Description = entry.Professor + ", grupa: " + entry.Group,
+                        Location = entry.Classroom,
+                        ResourceId = j
+                    });
+                }
+            }
+        }
+        schedules = scheduless;
+    }
+
+
+    public class ScheduleForm
+    {
+        public int Id { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public string Subject { get; set; }
+        public string Description { get; set; }
+        public string Location { get; set; }
+        public int ResourceId { get; set; }
+    }
+
+    public class ResourceDataModel
+    {
+        public int ResourceId { get; set; }
+        public string Type { get; set; }
+        public string Color { get; set; }
+    }
+
+    List<ResourceDataModel> ResourceData = new List<ResourceDataModel>
+    {
+        new ResourceDataModel { ResourceId = 1, Type = "AV - auditorne vježbe", Color = "#ea7a57"},
+        new ResourceDataModel { ResourceId = 2, Type = "PR - predavanja", Color = "#865fcf"},
+        new ResourceDataModel { ResourceId = 3, Type = "LV - laboratorijske vježbe", Color = "#df5286"},
+        new ResourceDataModel { ResourceId = 4, Type = "Nepoznato", Color = "#c9c926"},
+        new ResourceDataModel { ResourceId = 5, Type = "ISP - ispitni rok", Color = "#c23725"}
+    };
+}

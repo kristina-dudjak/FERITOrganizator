@@ -1,0 +1,58 @@
+﻿@page "/notes"
+@using FERITOrganizator.Shared.Models
+@using Syncfusion.Blazor.Grids
+@using FERITOrganizator.Client.Services
+@inject IJSRuntime JSRuntime
+@inject FERITOrganizator.Client.Services.NotesClient NotesClient
+<meta charset=utf-8 />
+
+
+<SfGrid TValue="Note" Toolbar="@(new List<string>() { "Add", "Cancel" })">
+    <SfDataManager Url="/api/Notes" Adaptor="Adaptors.WebApiAdaptor"></SfDataManager>
+    <GridEditSettings AllowAdding="true" AllowDeleting="true"></GridEditSettings>
+    <GridColumns>
+        <GridColumn Field="@nameof(Note.NoteId)" IsPrimaryKey="true" Visible="false"></GridColumn>
+        <GridColumn Field="@nameof(Note.Name)" HeaderText="Sadržaj" TextAlign="TextAlign.Left"
+                    ValidationRules="@(new Syncfusion.Blazor.Grids.ValidationRules(){Required=true})"></GridColumn>
+        <GridColumn Field="@nameof(Note.Due)" HeaderText="Vrijeme"
+                    EditType="EditType.DateTimePickerEdit" Format="dd.MM.yyyy HH:mm"></GridColumn>
+        <GridColumn>
+            <GridCommandColumns>
+                <GridCommandColumn Type="CommandButtonType.Delete"
+                                   ButtonOption="@(new CommandButtonOptions()
+                                                   { IconCss = "e-icons e-delete", CssClass = "e-flat" })"></GridCommandColumn>
+                <GridCommandColumn Type="CommandButtonType.Save"
+                                   ButtonOption="@(new CommandButtonOptions()
+                                                   { IconCss = "e-icons e-save", CssClass = "e-flat" })"></GridCommandColumn>
+                <GridCommandColumn Type="CommandButtonType.Cancel"
+                                   ButtonOption="@(new CommandButtonOptions()
+                                                   {IconCss="e-icons e-cancel-icon", CssClass="e-flat" })"></GridCommandColumn>
+            </GridCommandColumns>
+        </GridColumn>
+    </GridColumns>
+</SfGrid>
+
+
+@code{
+
+    protected override void OnInitialized()
+    {
+        _ = RequestNotificationSubscriptionAsync();
+    }
+
+    async Task RequestNotificationSubscriptionAsync()
+    {
+        var subscription = await JSRuntime.InvokeAsync<NotificationSubscription>("blazorPushNotifications.requestSubscription");
+        if (subscription != null)
+        {
+            try
+            {
+                await NotesClient.SubscribeToNotifications(subscription);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+    }
+}

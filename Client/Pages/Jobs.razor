@@ -1,0 +1,33 @@
+﻿@page "/jobs"
+@using FERITOrganizator.Shared.Models
+@inject IJobService JobService
+
+<h2>Najnovije objave i oglasi:</h2>
+<br />
+
+<table border="1">
+    @foreach (var job in JobService.Jobs)
+    {
+        <tr>
+            <td>
+                @if (job.Text.EndsWith("..."))
+                {
+                    @job.Text <a href = "https://www.facebook.com/pg/Studentski-servis-Osijek-Studentski-centar-u-Osijeku-138315679674425/posts/">Prikaži više</a>
+                }
+                else
+                {
+                    @job.Text;
+                }
+            </td>
+        </tr>
+     }
+</table>
+<br />
+
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await JobService.LoadJobs();
+    }
+}

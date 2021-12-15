@@ -1,0 +1,44 @@
+﻿@page "/menu"
+@inject IMenuService MenuService
+@inject IJSRuntime JSRuntime
+
+
+<h2>Trenutno na jelovniku:</h2>
+<br />
+
+@foreach (var menu in MenuService.Menus)
+{
+    <h4>@menu.Name</h4>
+    if (menu.Categories.Any())
+    {
+        <table border="1">
+            @foreach (var category in menu.Categories)
+            {
+                <tr>
+                    <td>@category.Title</td>
+                    <td class="meals">@category.Meals</td>
+                </tr>
+            }
+        </table>
+        <br />
+        <br />
+    }
+    else
+    {
+        <p>Jelovnik trenutno nije dostupan.</p>
+    }
+
+}
+
+@code{
+
+    protected override async Task OnInitializedAsync()
+    {
+        await MenuService.LoadMenus();
+    }
+
+}
+
+
+
+
